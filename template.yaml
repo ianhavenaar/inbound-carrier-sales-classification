@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Sales call classification ingestion API.
+  Receives POST from HappyRobot workflow, writes to DynamoDB for dashboard consumption.
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+
+Resources:
+
+  ##########################
+  # DynamoDB
+  ##########################
+  CallClassificationTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: sales-call-classifications
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: call_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+        - AttributeName: classification
+          AttributeType: S
+      KeySchema:
+        - AttributeName: call_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: classification-timestamp-index
+          KeySchema:
+            - AttributeName: classification
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  ##########################
+  # API Gateway (REST API — needed for API key/usage plan support)
+  ##########################
+  CallClassificationApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      Auth:
+        ApiKeyRequired: true
+
+  ##########################
+  # Lambda
+  ##########################
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      CodeUri: ./src
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref CallClassificationTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref CallClassificationTable
+      Events:
+        PostCall:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CallClassificationApi
+            Path: /calls
+            Method: POST
+
+  ##########################
+  # API Key + Usage Plan
+  ##########################
+  ApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn:
+      - CallClassificationApiprodStage
+    Properties:
+      Name: happyrobot-webhook-key
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref CallClassificationApi
+          StageName: prod
+
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn:
+      - CallClassificationApiprodStage
+    Properties:
+      UsagePlanName: happyrobot-usage-plan
+      ApiStages:
+        - ApiId: !Ref CallClassificationApi
+          Stage: prod
+      Throttle:
+        RateLimit: 10
+        BurstLimit: 20
+
+  UsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref ApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref UsagePlan
+
+Outputs:
+  ApiEndpoint:
+    Description: "POST endpoint for call classifications"
+    Value: !Sub "https://${CallClassificationApi}.execute-api.${AWS::Region}.amazonaws.com/prod/calls"
+  ApiKeyId:
+    Description: "Retrieve the actual key value with: aws apigateway get-api-key --api-key <this-id> --include-value"
+    Value: !Ref ApiKey
+  TableName:
+    Value: !Ref CallClassificationTable
