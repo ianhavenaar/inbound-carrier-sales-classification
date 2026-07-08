@@ -119,11 +119,7 @@ after your Classify/Extract nodes:
 ## Security notes
 
 - The API key gates who can call the endpoint at all; rate limiting is set
-  conservatively (10 req/s, burst 20) — raise this in `template.yaml` if
-  call volume needs it.
-- Given you've had live keys leak into chat before — store this API key in
-  HappyRobot's secrets/env config for the workflow, not hardcoded in the
-  node body, and rotate it if it's ever pasted somewhere it shouldn't be.
+  conservatively (10 req/s, burst 20)
 - Lambda's IAM role is scoped to `PutItem`/CRUD only on this one table via
   `DynamoDBCrudPolicy` — it can't touch other tables in your account.
 - The dashboard's ECS task role is scoped to read-only
