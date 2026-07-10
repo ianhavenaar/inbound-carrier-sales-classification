@@ -1,0 +1,27 @@
+# SAM build artifacts
+.aws-sam/
+ 
+# AWS CLI / SAM CLI install directories (from setup, not project code)
+aws/
+sam-installation/
+awscliv2.zip
+sam-installation.zip
+ 
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+venv/
+venv312/
+.venv/
+*.egg-info/
+ 
+# Environment / secrets
+.env
+*.pem
+ 
+# OS/editor cruft
+.DS_Store
+.vscode/
+*.swp

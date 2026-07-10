@@ -60,25 +60,39 @@ def load_data() -> pd.DataFrame:
 
 
 app = Dash(__name__)
-app.title = "Sales Call Dashboard"
+app.title = " Carrier Sales Call Dashboard"
 server = app.server  # exposed for gunicorn
 
 app.layout = html.Div(
     style={"fontFamily": "Arial, sans-serif", "margin": "20px"},
     children=[
-        html.H2("Sales Call Classification Dashboard"),
+        html.H2(" Carrier Sales Call Classification Dashboard"),
         dcc.Interval(id="refresh", interval=REFRESH_INTERVAL_MS, n_intervals=0),
 
         # KPI row
         html.Div(id="kpi-row", style={"display": "flex", "gap": "20px", "marginBottom": "20px"}),
 
-        # Charts row
+        # Calls over time — full width row on its own, wider than before
+        html.Div(
+            style={"marginBottom": "20px"},
+            children=[dcc.Graph(id="calls-over-time", style={"width": "100%", "height": "400px"})],
+        ),
+
+        # Booking decision + classification breakdown
+        html.Div(
+            style={"display": "flex", "gap": "20px", "flexWrap": "wrap", "marginBottom": "20px"},
+            children=[
+                dcc.Graph(id="booking-decision-pie", style={"flex": "1", "minWidth": "300px"}),
+                dcc.Graph(id="classification-bar", style={"flex": "1", "minWidth": "300px"}),
+            ],
+        ),
+
+        # Decline reasons + call duration vs booking decision
         html.Div(
             style={"display": "flex", "gap": "20px", "flexWrap": "wrap"},
             children=[
-                dcc.Graph(id="calls-over-time", style={"flex": "1", "minWidth": "400px"}),
-                dcc.Graph(id="booking-decision-pie", style={"flex": "1", "minWidth": "300px"}),
-                dcc.Graph(id="classification-bar", style={"flex": "1", "minWidth": "300px"}),
+                dcc.Graph(id="decline-reasons-histogram", style={"flex": "1", "minWidth": "350px"}),
+                dcc.Graph(id="duration-by-decision", style={"flex": "1", "minWidth": "350px"}),
             ],
         ),
 
@@ -112,6 +126,8 @@ def kpi_card(label, value):
     Output("calls-over-time", "figure"),
     Output("booking-decision-pie", "figure"),
     Output("classification-bar", "figure"),
+    Output("decline-reasons-histogram", "figure"),
+    Output("duration-by-decision", "figure"),
     Output("recent-calls-table", "data"),
     Output("recent-calls-table", "columns"),
     Input("refresh", "n_intervals"),
@@ -130,7 +146,7 @@ def refresh_dashboard(_):
         kpi_card("Avg Call Duration", avg_duration_display),
     ]
 
-    # Calls over time
+    # Calls over time — now full-width via layout, given more visual room
     if not df.empty and df["timestamp"].notna().any():
         daily = (
             df.dropna(subset=["timestamp"])
@@ -159,6 +175,36 @@ def refresh_dashboard(_):
     else:
         fig_class = px.bar(title="Calls by Classification (no data yet)")
 
+    # Decline reasons histogram — only among calls that were actually declined
+    declined = df[df["booking_decision"] == "declined"] if "booking_decision" in df else pd.DataFrame()
+    if not declined.empty and declined["decline_reason"].notna().any():
+        fig_decline = px.histogram(
+            declined.dropna(subset=["decline_reason"]),
+            x="decline_reason",
+            title="Decline Reasons",
+        ).update_xaxes(categoryorder="total descending")
+        fig_decline.update_layout(yaxis_title="Count", xaxis_title="Decline reason")
+    else:
+        fig_decline = px.histogram(title="Decline Reasons (no data yet)")
+
+    # Call duration vs. booking decision — box plot shows spread, not just an average
+    booking_df = (
+        df.dropna(subset=["call_duration", "booking_decision"])
+        if "call_duration" in df and "booking_decision" in df
+        else pd.DataFrame()
+    )
+    if not booking_df.empty:
+        fig_duration = px.box(
+            booking_df,
+            x="booking_decision",
+            y="call_duration",
+            points="all",
+            title="Call Duration by Booking Decision",
+        )
+        fig_duration.update_layout(yaxis_title="Call duration (s)", xaxis_title="Booking decision")
+    else:
+        fig_duration = px.box(title="Call Duration by Booking Decision (no data yet)")
+
     # Recent calls table
     display_cols = [c for c in [
         "timestamp", "classification", "booking_decision", "decline_reason",
@@ -170,9 +216,9 @@ def refresh_dashboard(_):
     columns = [{"name": c, "id": c} for c in display_cols]
     data = table_df.to_dict("records")
 
-    return kpis, fig_time, fig_decision, fig_class, data, columns
+    return kpis, fig_time, fig_decision, fig_class, fig_decline, fig_duration, data, columns
 
 
 if __name__ == "__main__":
-    # Local dev only — App Runner uses gunicorn via the Dockerfile CMD instead.
+    # Local dev only — the deployed container uses gunicorn via the Dockerfile CMD instead.
     app.run(host="0.0.0.0", port=8080, debug=True)
