@@ -3,6 +3,8 @@
 Serverless ingestion endpoint: HappyRobot workflow → API Gateway → Lambda → DynamoDB.
 Feeds a downstream dashboard (Dash/Plotly, deployed on Amazon ECS Express Mode).
 
+Access the dashboard: https://ca-647a3b36dac94a54a80f790196ea7095.ecs.us-east-1.on.aws/
+
 ## Architecture
 
 ```
