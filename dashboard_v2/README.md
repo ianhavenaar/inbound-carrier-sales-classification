@@ -10,19 +10,6 @@ AWS Account: `331339687011` | Region: `us-east-1`
 
 ---
 
-## Prerequisites
-
-- WSL2 Ubuntu (avoid running any of this from `/mnt/c/...` — use your Linux
-  home directory, e.g. `~/happy-robot/dashboard`, to avoid symlink/permission
-  errors during installs)
-- Docker Desktop installed on Windows with WSL integration enabled
-  (Docker Desktop → Settings → Resources → WSL Integration → enable your distro)
-- AWS CLI configured (`aws configure` or `aws login`)
-- Your user in the `docker` group: `sudo usermod -aG docker $USER`, then
-  `wsl --shutdown` from PowerShell and reopen Ubuntu for it to take effect
-
----
-
 ## 1. Project files
 
 ```
@@ -209,41 +196,3 @@ aws ecs update-express-gateway-service \
   --region us-east-1 \
   --monitor-resources
 ```
-
----
-
-## 10. Optional: custom domain
-
-The auto-generated `.on.aws` URL works fine for an internal tool. If you
-want a custom domain later (e.g. `dashboard.yourdomain.com`), it requires:
-
-1. An ACM certificate for the domain, in `us-east-1`
-2. Manually editing the ALB listener rule Express Mode created (Console →
-   ECS → Clusters → `default` → service → Resources tab → listener rule) to
-   add your custom domain as an additional Host header condition
-3. A Route 53 alias record (or CNAME elsewhere) pointing to the ALB
-
-This isn't a first-class Express Mode feature yet — it's a documented
-manual workaround, so treat it as optional/advanced. Skip unless you have
-a real need for it.
-
----
-
-## Troubleshooting notes hit during setup
-
-- **`permission denied` on `docker build`** → your WSL user wasn't in the
-  `docker` group yet: `sudo usermod -aG docker $USER`, then
-  `wsl --shutdown` from PowerShell, reopen Ubuntu.
-- **`ModuleNotFoundError: No module named 'boto3'`** when running the
-  dummy data script locally → that's a separate Python environment from
-  the Docker image; `pip install boto3` (or `--break-system-packages`, or
-  use a venv) in WSL directly.
-- **`MissingDependencyException` re: `botocore[crt]`** → happens if you're
-  authenticated via `aws login` (browser SSO-style) rather than static
-  keys; run `pip install "botocore[crt]"`.
-- **`InvalidClientTokenId`** → usually a deleted/rotated access key; check
-  `aws sts get-caller-identity`, regenerate a key or re-run `aws login`.
-- **Repository name mismatches** → ECR repo, image tag, and the
-  `image` field in `--primary-container` must all match exactly — check
-  `aws ecr describe-images --repository-name carrier-sales-call-dashboard --region us-east-1`
-  if push/deploy commands seem to silently target the wrong thing.
