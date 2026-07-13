@@ -6,7 +6,7 @@ April 30, 2026). Express Mode provisions a Fargate service, Application
 Load Balancer, HTTPS, auto scaling, and a public URL from a single command.
 
 Deployed service in this project: **carrier-sales-call-dashboard**
-AWS Account: `331339687011` | Region: `us-east-1`
+Region: `us-east-1`
 
 ---
 
@@ -42,16 +42,16 @@ aws ecr describe-repositories --repository-names carrier-sales-call-dashboard --
 
 ```bash
 # Authenticate Docker to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 331339687011.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <YOUR_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
 
 # Build
 docker build -t carrier-sales-call-dashboard .
 
 # Tag
-docker tag carrier-sales-call-dashboard:latest 331339687011.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
+docker tag carrier-sales-call-dashboard:latest <YOUR_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
 
 # Push
-docker push 331339687011.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
+docker push <YOUR_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
 ```
 
 ---
@@ -108,11 +108,11 @@ this case.
 ```bash
 aws ecs create-express-gateway-service \
   --service-name carrier-sales-call-dashboard \
-  --execution-role-arn arn:aws:iam::331339687011:role/ecsTaskExecutionRole \
-  --infrastructure-role-arn arn:aws:iam::331339687011:role/ecsInfrastructureRoleForExpressServices \
-  --task-role-arn arn:aws:iam::331339687011:role/dashboard-ecs-task-role \
+  --execution-role-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:role/ecsTaskExecutionRole \
+  --infrastructure-role-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:role/ecsInfrastructureRoleForExpressServices \
+  --task-role-arn arn:aws:iam::<YOUR_ACCOUNT_ID>:role/dashboard-ecs-task-role \
   --primary-container '{
-    "image": "331339687011.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest",
+    "image": "<YOUR_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest",
     "containerPort": 8080,
     "environment": [
       {"name": "TABLE_NAME", "value": "sales-call-classifications"},
@@ -142,7 +142,7 @@ aws ecs list-services --cluster default --region us-east-1
 Then get full details, including the public endpoint:
 ```bash
 aws ecs describe-express-gateway-service \
-  --service-arn arn:aws:ecs:us-east-1:331339687011:service/default/carrier-sales-call-dashboard \
+  --service-arn arn:aws:ecs:us-east-1:<YOUR_ACCOUNT_ID>:service/default/carrier-sales-call-dashboard \
   --region us-east-1
 ```
 
@@ -155,7 +155,7 @@ https://ca-647a3b36dac94a54a80f790196ea7095.ecs.us-east-1.on.aws
 To check status quickly without the full JSON dump:
 ```bash
 aws ecs describe-express-gateway-service \
-  --service-arn arn:aws:ecs:us-east-1:331339687011:service/default/carrier-sales-call-dashboard \
+  --service-arn arn:aws:ecs:us-east-1:<YOUR_ACCOUNT_ID>:service/default/carrier-sales-call-dashboard \
   --region us-east-1 \
   --query 'service.status'
 ```
@@ -181,16 +181,16 @@ Whenever `app.py` changes:
 
 ```bash
 docker build -t carrier-sales-call-dashboard .
-docker tag carrier-sales-call-dashboard:latest 331339687011.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
-docker push 331339687011.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
+docker tag carrier-sales-call-dashboard:latest <YOUR_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
+docker push <YOUR_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest
 ```
 
 Then trigger a new deployment with the updated image:
 ```bash
 aws ecs update-express-gateway-service \
-  --service-arn arn:aws:ecs:us-east-1:331339687011:service/default/carrier-sales-call-dashboard \
+  --service-arn arn:aws:ecs:us-east-1:<YOUR_ACCOUNT_ID>:service/default/carrier-sales-call-dashboard \
   --primary-container '{
-    "image": "331339687011.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest",
+    "image": "<YOUR_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/carrier-sales-call-dashboard:latest",
     "containerPort": 8080
   }' \
   --region us-east-1 \
